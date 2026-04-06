@@ -565,7 +565,7 @@ async function loadDiary(id) {
     imageFiles.value = parseDiaryImages(diary.images).slice(0, MAX_IMAGE_COUNT)
   } catch (error) {
     SnackBar?.({
-      text: error.message || '读取日记详情失败',
+      text: error.message || '读取日记失败',
       color: 'error',
       icon: 'mdi-alert-circle-outline'
     })
