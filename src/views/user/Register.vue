@@ -1,107 +1,76 @@
 <template>
-    <v-row>
-        <v-col cols="12" md="7">
-            <v-card rounded="xl" border class="h-100">
-                <v-card-text class="pa-6 pa-md-8 d-flex flex-column justify-space-between h-100">
-                    <div>
-                        <div class="text-overline">Create Account</div>
-                        <div class="text-h4 font-weight-bold mt-2">注册一个属于你的半页纸。</div>
-                        <div class="text-body-1 text-medium-emphasis mt-4">
-                            注册流程基于接口文档中的邮箱验证码和 hCaptcha。发送邮箱验证码走 /auth/emailvarify，提交注册走 /auth/register。
-                        </div>
-                    </div>
+    <div class="mx-auto" style="max-width: 500px">
+        <div class="text-center mb-6">
+            <div class="text-h4 font-weight-bold">创建账号</div>
+            <div class="text-body-2 text-medium-emphasis mt-2">填写以下信息完成注册</div>
+        </div>
 
-                    <v-row dense class="mt-8">
-                        <v-col cols="12" sm="4">
-                            <v-sheet border rounded="xl" class="pa-4">
-                                <div class="text-caption text-medium-emphasis">用户名</div>
-                                <div class="text-h6 mt-2">5 到 16 位</div>
-                            </v-sheet>
-                        </v-col>
-                        <v-col cols="12" sm="4">
-                            <v-sheet border rounded="xl" class="pa-4">
-                                <div class="text-caption text-medium-emphasis">密码提交</div>
-                                <div class="text-h6 mt-2">前端哈希后上传</div>
-                            </v-sheet>
-                        </v-col>
-                        <v-col cols="12" sm="4">
-                            <v-sheet border rounded="xl" class="pa-4">
-                                <div class="text-caption text-medium-emphasis">邮箱校验</div>
-                                <div class="text-h6 mt-2">验证码 60 秒冷却</div>
-                            </v-sheet>
-                        </v-col>
-                    </v-row>
-                </v-card-text>
-            </v-card>
-        </v-col>
+        <v-card rounded="xl" border>
+            <v-card-text class="pa-7">
+                <v-form @submit.prevent="submitRegister">
+                <v-text-field v-model="form.username" clearable label="用户名" placeholder="请输入用户名" persistent-placeholder prepend-inner-icon="mdi-account-outline" variant="outlined" />
+                <v-text-field v-model="form.email" clearable label="邮箱" placeholder="请输入邮箱" persistent-placeholder prepend-inner-icon="mdi-email-outline" variant="outlined" />
 
-        <v-col cols="12" md="5">
-            <v-card rounded="xl" border>
-                <v-card-text class="pa-6">
-                    <div class="text-h5 font-weight-bold">创建账号</div>
-                    <div class="text-body-2 text-medium-emphasis mt-2">填完信息后，通过验证码和 hCaptcha 完成注册。</div>
+                <v-text-field
+                    v-model="form.password"
+                    :append-inner-icon="showPassword ? 'mdi-eye-off-outline' : 'mdi-eye-outline'"
+                    :type="showPassword ? 'text' : 'password'"
+                    clearable
+                    label="密码"
+                    placeholder="请输入密码"
+                    persistent-placeholder
+                    prepend-inner-icon="mdi-lock-outline"
+                    variant="outlined"
+                    @click:append-inner="showPassword = !showPassword"
+                />
 
-                    <v-form class="mt-6" @submit.prevent="submitRegister">
-                        <v-text-field v-model="form.username" clearable label="用户名" prepend-inner-icon="mdi-account-outline" variant="outlined" />
-                        <v-text-field v-model="form.email" clearable label="邮箱" prepend-inner-icon="mdi-email-outline" variant="outlined" />
+                <v-text-field
+                    v-model="form.confirmPassword"
+                    :append-inner-icon="showConfirmPassword ? 'mdi-eye-off-outline' : 'mdi-eye-outline'"
+                    :type="showConfirmPassword ? 'text' : 'password'"
+                    clearable
+                    label="确认密码"
+                    placeholder="请再次输入密码"
+                    persistent-placeholder
+                    prepend-inner-icon="mdi-lock-check-outline"
+                    variant="outlined"
+                    @click:append-inner="showConfirmPassword = !showConfirmPassword"
+                />
 
-                        <v-row>
-                            <v-col cols="12" sm="7">
-                                <v-text-field
-                                    v-model="form.mail_code"
-                                    clearable
-                                    label="邮箱验证码"
-                                    prepend-inner-icon="mdi-shield-key-outline"
-                                    variant="outlined"
-                                />
-                            </v-col>
-
-                            <v-col cols="12" sm="5">
-                                <v-btn block class="h-100" :disabled="!canSendCode" :loading="sendingCode" variant="tonal" @click="sendCode">
-                                    {{ countdown > 0 ? `${countdown}s 后重试` : '发送验证码' }}
-                                </v-btn>
-                            </v-col>
-                        </v-row>
-
+                <v-row dense align="center" class="mb-2">
+                    <v-col cols="7">
                         <v-text-field
-                            v-model="form.password"
-                            :append-inner-icon="showPassword ? 'mdi-eye-off-outline' : 'mdi-eye-outline'"
-                            :type="showPassword ? 'text' : 'password'"
+                            v-model="form.mail_code"
                             clearable
-                            label="密码"
-                            prepend-inner-icon="mdi-lock-outline"
+                            hide-details
+                            label="邮箱验证码"
+                            placeholder="请输入验证码"
+                            persistent-placeholder
+                            prepend-inner-icon="mdi-shield-key-outline"
                             variant="outlined"
-                            @click:append-inner="showPassword = !showPassword"
                         />
+                    </v-col>
+                    <v-col cols="5">
+                        <v-btn block :disabled="!canSendCode" :loading="sendingCode" variant="tonal" @click="sendCode">
+                            {{ countdown > 0 ? `${countdown}s` : '发送验证码' }}
+                        </v-btn>
+                    </v-col>
+                </v-row>
 
-                        <v-text-field
-                            v-model="form.confirmPassword"
-                            :append-inner-icon="showConfirmPassword ? 'mdi-eye-off-outline' : 'mdi-eye-outline'"
-                            :type="showConfirmPassword ? 'text' : 'password'"
-                            clearable
-                            label="确认密码"
-                            prepend-inner-icon="mdi-lock-check-outline"
-                            variant="outlined"
-                            @click:append-inner="showConfirmPassword = !showConfirmPassword"
-                        />
+                <div class="my-4">
+                    <VueHcaptcha ref="captchaRef" :sitekey="HCAPTCHA_SITE_KEY" @verify="onCaptchaVerify" @expired="resetCaptcha" />
+                </div>
 
-                        <div class="my-4 d-flex justify-center">
-                            <VueHcaptcha ref="captchaRef" :sitekey="HCAPTCHA_SITE_KEY" @verify="onCaptchaVerify" @expired="resetCaptcha" />
-                        </div>
+                <v-btn color="primary" :disabled="!canRegister" :loading="registering" type="submit">注册</v-btn>
+                </v-form>
+            </v-card-text>
+        </v-card>
 
-                        <v-alert type="info" variant="tonal" rounded="xl" class="mb-4">
-                            当前 API 文档没有提供自动登录接口返回说明，因此注册成功后会跳转到登录页。
-                        </v-alert>
-
-                        <div class="d-flex align-center justify-space-between mt-4">
-                            <v-btn variant="text" to="/login">已有账号，去登录</v-btn>
-                            <v-btn color="primary" :disabled="!canRegister" :loading="registering" type="submit">注册</v-btn>
-                        </div>
-                    </v-form>
-                </v-card-text>
-            </v-card>
-        </v-col>
-    </v-row>
+        <div class="d-flex align-center justify-center mt-4">
+            <span class="text-body-2 text-medium-emphasis">已有账号？</span>
+            <v-btn variant="text" size="small" to="/login">去登录</v-btn>
+        </div>
+    </div>
 </template>
 
 <script setup>

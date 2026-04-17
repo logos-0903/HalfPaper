@@ -16,6 +16,24 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/diary/detail/:id',
+    name: 'Detail',
+    component: () => import('../views/diary/Detail.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/firefly',
+    name: 'firefly',
+    component: () => import('../views/Firefly.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/favorites',
+    name: 'favorites',
+    component: () => import('../views/Favorites.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/manage/list',
     name: 'manage-list',
     component: () => import('../views/manage/List.vue'),
@@ -25,6 +43,18 @@ const routes = [
     path: '/user/info',
     name: 'user-info',
     component: () => import('../views/user/Info.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/user/edit',
+    name: 'user-editor',
+    component: () => import('../views/user/Editor.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/settings/:tab?',
+    name: 'settings',
+    component: () => import('../views/user/ProfileDetail.vue'),
     meta: { requiresAuth: true }
   },
   {
@@ -38,6 +68,11 @@ const routes = [
     name: 'register',
     component: () => import('../views/user/Register.vue'),
     meta: { guestOnly: true }
+  },
+  {
+    path: '/about/:tab?',
+    name: 'about',
+    component: () => import('../views/About.vue')
   }
 ]
 

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { getUserInfo, login, register } from '@/services/api'
+import { getUserInfo, login, logout as logoutApi, register } from '@/services/api'
 import { clearSessionCookies } from '@/utils/security'
 
 const PROFILE_KEY = 'halfpaper.profile'
@@ -77,8 +77,13 @@ export const useAuthStore = defineStore('auth', {
     async register(payload) {
       return register(payload)
     },
-    logout() {
-      clearSessionCookies()
+    async logout() {
+      try {
+        await logoutApi()
+      } catch {
+        // 后端不可达时兜底清除前端 cookie
+        clearSessionCookies()
+      }
       this.clearProfile()
       this.initialized = true
     }

@@ -1,12 +1,10 @@
 export const APP_NAME = '半页纸'
-export const API_BASE_URL = 'https://api.halfpaper.top'
+export const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || 'https://api.halfpaper.top').replace(/\/+$/, '')
 export const HCAPTCHA_SITE_KEY = 'e67e63f0-7a40-4abe-8b5c-8722a5a8824a'
 
 export const VISIBILITY_OPTIONS = [
   { title: '仅自己可见', value: 'private' },
-  { title: '粉丝可见', value: 'fans' },
-  { title: '好友可见', value: 'friends' },
-  { title: '公开', value: 'public' }
+  { title: '发布到萤火集', value: 'public' }
 ]
 
 export const WEATHER_OPTIONS = [

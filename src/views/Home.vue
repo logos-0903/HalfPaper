@@ -1,17 +1,14 @@
 <template>
   <div class="d-flex flex-column ga-6">
     <v-card rounded="xl" border>
-      <v-card-text class="pa-6 pa-md-8">
+      <v-card-text class="pa-7">
         <v-row align="center">
           <v-col cols="12" md="8">
             <div class="text-overline">HalfPaper Journal</div>
             <div class="text-h4 font-weight-bold mt-1">在半页纸里，把今天写下来。</div>
-            <div class="text-body-1 text-medium-emphasis mt-3">
-              首页聚合已发布日记、搜索结果和你的基础统计。布局遵循左侧导航、底部导航和中间主体，适合桌面与移动端继续扩展。
-            </div>
             <div class="d-flex flex-wrap ga-3 mt-6">
               <v-btn color="primary" prepend-icon="mdi-pencil-outline" to="/write">开始写作</v-btn>
-              <v-btn variant="tonal" prepend-icon="mdi-folder-edit-outline" to="/manage/list">打开草稿箱</v-btn>
+              <v-btn variant="tonal" prepend-icon="mdi-folder-edit-outline" to="/manage/list">打开信箱</v-btn>
             </div>
           </v-col>
 
@@ -39,9 +36,7 @@
     />
 
     <v-card v-if="!isLoggedIn" rounded="xl" border>
-      <v-card-text class="pa-6">
-        <div class="text-h6 font-weight-bold">登录后查看你的日记流</div>
-        <div class="text-body-2 text-medium-emphasis mt-2">接口文档中的日记接口都要求登录，当前首页会在未登录时展示引导卡片。</div>
+      <v-card-text class="pa-7">
         <div class="d-flex flex-wrap ga-3 mt-5">
           <v-btn color="primary" to="/login">去登录</v-btn>
           <v-btn variant="tonal" to="/register">去注册</v-btn>
@@ -51,12 +46,11 @@
 
     <template v-else>
       <v-card rounded="xl" border>
-        <v-card-text>
+        <v-card-text class="pa-7">
           <v-row align="center">
             <v-col cols="12" md="4">
               <div class="text-h6 font-weight-bold">最近日记</div>
-              <div class="text-body-2 text-medium-emphasis">读取 /diary/list 的 active 数据，并支持可见性筛选。</div>
-            </v-col>
+            </v-col>  
 
             <v-col cols="12" md="4">
               <v-select
@@ -87,10 +81,10 @@
 
       <v-row v-if="filteredDiaries.length" dense>
         <v-col v-for="item in filteredDiaries" :key="item.id" cols="12">
-          <v-card rounded="xl" border>
-            <v-card-item>
-              <v-card-title>{{ item.title || '无标题日记' }}</v-card-title>
-              <v-card-subtitle>{{ formatDate(item.published_at || item.updated_at || item.created_at) }}</v-card-subtitle>
+          <v-card rounded="xl" border class="diary-card" @click="openDetail(item.id)">
+            <v-card-item class="pa-7">
+              <v-card-title class="font-weight-bold">{{ item.title || '无标题日记' }}</v-card-title>
+              <v-card-subtitle>{{ diaryTimeText(item) }}</v-card-subtitle>
 
               <template #append>
                 <div class="d-flex flex-wrap ga-2 justify-end">
@@ -100,32 +94,33 @@
               </template>
             </v-card-item>
 
-            <v-card-text class="pt-0">
+            <v-card-text class="pt-0 px-7 pb-7">
               <div class="text-body-1">{{ summarizeText(item.summary, 180) }}</div>
 
               <div class="d-flex flex-wrap ga-3 mt-4 text-body-2 text-medium-emphasis">
                 <span>点赞 {{ item.like_count ?? 0 }}</span>
                 <span>评论 {{ item.comment_count ?? 0 }}</span>
-                <span>创建于 {{ formatDate(item.created_at) }}</span>
               </div>
             </v-card-text>
 
             <v-card-actions class="px-4 pb-4">
-              <v-btn variant="text" prepend-icon="mdi-pencil-outline" :to="`/write/${item.id}`">编辑</v-btn>
+              <v-btn variant="text" prepend-icon="mdi-pencil-outline" @click.stop="openEditor(item.id)">编辑</v-btn>
               <v-spacer />
-              <v-btn color="primary" variant="tonal" prepend-icon="mdi-open-in-new" :to="`/write/${item.id}`">查看详情</v-btn>
+              <v-btn
+                v-if="item.user_id !== profile?.uuid"
+                icon
+                variant="text"
+                size="small"
+                @click.stop="handleToggleFavorite(item)"
+              >
+                <v-icon :color="item.is_favorited ? 'amber' : undefined">{{ item.is_favorited ? 'mdi-star' : 'mdi-star-outline' }}</v-icon>
+              </v-btn>
             </v-card-actions>
           </v-card>
         </v-col>
       </v-row>
 
-      <v-card v-else rounded="xl" border>
-        <v-card-text class="pa-8 text-center">
-          <div class="text-h6 font-weight-bold">还没有匹配的日记</div>
-          <div class="text-body-2 text-medium-emphasis mt-2">可以切换筛选条件、清空搜索，或者直接开始写第一篇。</div>
-          <v-btn class="mt-5" color="primary" to="/write">写一篇新日记</v-btn>
-        </v-card-text>
-      </v-card>
+     
 
       <div class="d-flex justify-center">
         <v-pagination
@@ -142,20 +137,23 @@
 <script setup>
 import { computed, inject, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { DIARY_PAGE_SIZE_OPTIONS, VISIBILITY_OPTIONS } from '@/constants/app'
 import { listDiaries } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { usePreferencesStore } from '@/stores/preferences'
-import { formatDate, summarizeText } from '@/utils/format'
+import { useFavorite } from '@/composables/useFavorite'
+import { getDiaryPrimaryTime, summarizeText } from '@/utils/format'
 
 const route = useRoute()
+const router = useRouter()
 const SnackBar = inject('snack', null)
 const authStore = useAuthStore()
 const preferencesStore = usePreferencesStore()
 
 const { isLoggedIn, profile } = storeToRefs(authStore)
 const { diaryPageSize } = storeToRefs(preferencesStore)
+const { toggleFavorite } = useFavorite()
 
 const loading = ref(false)
 const diaries = ref([])
@@ -182,9 +180,7 @@ const filteredDiaries = computed(() => {
 
 const statsCards = computed(() => [
   { label: '我的日记', value: profile.value?.diary_count ?? 0 },
-  { label: '我的好友', value: profile.value?.friend_count ?? 0 },
-  { label: '我的关注', value: profile.value?.follow_count ?? 0 },
-  { label: '我的粉丝', value: profile.value?.fans_count ?? 0 }
+  { label: '获赞数量', value: profile.value?.liked_count ?? 0 }
 ])
 
 watch([visibility, diaryPageSize], () => {
@@ -203,6 +199,31 @@ watch([isLoggedIn, visibility, page, diaryPageSize], ([loggedIn]) => {
 
 function visibilityText(value) {
   return visibilityOptions.find((item) => item.value === value)?.title || value || '未设置'
+}
+
+function diaryTimeText(item) {
+  const timeInfo = getDiaryPrimaryTime(item?.created_at, item?.updated_at)
+  return `${timeInfo.label}${timeInfo.value}`
+}
+
+function openDetail(itemId) {
+  router.push(`/diary/detail/${itemId}`)
+}
+
+function openEditor(itemId) {
+  router.push(`/write/${itemId}`)
+}
+
+function handleToggleFavorite(item) {
+  toggleFavorite(item, {
+    onError: (error) => {
+      SnackBar?.({
+        text: error.message || '收藏操作失败',
+        color: 'error',
+        icon: 'mdi-alert-circle-outline'
+      })
+    }
+  })
 }
 
 async function loadDiaries() {
@@ -229,3 +250,9 @@ async function loadDiaries() {
   }
 }
 </script>
+
+<style scoped>
+.diary-card {
+  cursor: pointer;
+}
+</style>

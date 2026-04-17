@@ -7,7 +7,9 @@ import { createVuetify } from 'vuetify'
 import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
 import { aliases, mdi } from 'vuetify/iconsets/mdi'
+import { zhHans } from 'vuetify/locale'
 import '@mdi/font/css/materialdesignicons.css'
+import './assets/layout.css'
 
 const initialTheme = typeof window !== 'undefined'
   ? localStorage.getItem('halfpaper.theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'halfpaperDark' : 'halfpaperLight')
@@ -20,6 +22,10 @@ const vuetify = createVuetify({
     defaultSet: 'mdi',
     aliases,
     sets: { mdi }
+  },
+  locale: {
+    locale: 'zh-hans',
+    messages: { zhHans }
   },
   theme: {
     defaultTheme: initialTheme,

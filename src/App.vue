@@ -4,20 +4,24 @@
             <v-app-bar-nav-icon @click="drawer = !drawer" />
             <div>
                 <div class="text-h6 font-weight-bold">{{ appName }}</div>
-                <div class="text-caption text-medium-emphasis">把每天写成一页留白</div>
             </div>
 
             <v-spacer />
 
-            <v-btn icon variant="text" @click="searchDialog = true">
-                <v-icon>mdi-magnify</v-icon>
-            </v-btn>
-            <v-btn icon variant="text" @click="preferencesStore.toggleTheme()">
-                <v-icon>{{ themeIcon }}</v-icon>
-            </v-btn>
-            <v-btn icon variant="text" @click="router.push('/user/info')">
-                <v-icon>mdi-cog-outline</v-icon>
-            </v-btn>
+            <template v-if="isLoggedIn">
+                <v-btn icon variant="text" @click="searchDialog = true">
+                    <v-icon>mdi-magnify</v-icon>
+                </v-btn>
+                <v-btn icon variant="text" @click="preferencesStore.toggleTheme()">
+                    <v-icon>{{ themeIcon }}</v-icon>
+                </v-btn>
+                <v-btn icon variant="text" @click="router.push('/firefly')">
+                    <v-icon>mdi-star-shooting</v-icon>
+                </v-btn>
+                <v-btn icon variant="text" @click="router.push('/settings')">
+                    <v-icon>mdi-cog-outline</v-icon>
+                </v-btn>
+            </template>
 
             <v-menu location="bottom end" offset="12">
                 <template #activator="{ props }">
@@ -31,46 +35,35 @@
                     </v-btn>
                 </template>
 
-                <v-card width="320" rounded="xl">
-                    <v-card-item>
+                <v-card width="280" rounded="xl">
+                    <v-card-item class="pa-5 pb-3">
                         <template #prepend>
-                            <v-avatar size="56" color="primary" variant="tonal">
+                            <v-avatar size="48" color="primary" variant="tonal">
                                 <v-img v-if="profile?.avatar" :src="profile.avatar" cover />
-                                <span v-else class="text-h6">{{ (profile?.username || '半').slice(0, 1) }}</span>
+                                <span v-else class="text-subtitle-1 font-weight-bold">{{ (profile?.username || '半').slice(0, 1) }}</span>
                             </v-avatar>
                         </template>
 
-                        <v-card-title>{{ profile?.username || '访客' }}</v-card-title>
-                        <v-card-subtitle>{{ profile?.email || '登录后同步你的日记与草稿' }}</v-card-subtitle>
+                        <v-card-title class="text-subtitle-1 font-weight-medium">{{ profile?.username || '访客' }}</v-card-title>
+                        <v-card-subtitle class="text-caption">{{ profile?.email || '登录后同步你的日记与草稿' }}</v-card-subtitle>
                     </v-card-item>
 
-                    <v-card-text>
-                        <v-row dense>
-                            <v-col cols="6">
-                                <v-sheet border rounded="lg" class="pa-3">
-                                    <div class="text-caption text-medium-emphasis">日记</div>
-                                    <div class="text-h6">{{ profile?.diary_count ?? 0 }}</div>
-                                </v-sheet>
-                            </v-col>
-                            <v-col cols="6">
-                                <v-sheet border rounded="lg" class="pa-3">
-                                    <div class="text-caption text-medium-emphasis">关注</div>
-                                    <div class="text-h6">{{ profile?.follow_count ?? 0 }}</div>
-                                </v-sheet>
-                            </v-col>
-                        </v-row>
+                    <v-divider />
 
-                        <v-list class="px-0" density="comfortable" lines="one">
-                            <v-list-item prepend-icon="mdi-account-circle-outline" title="个人中心" subtitle="查看账户与本地偏好" @click="router.push('/user/info')" />
-                            <v-list-item prepend-icon="mdi-pencil-box-outline" title="继续写作" subtitle="进入写日记页面" @click="router.push('/write')" />
-                        </v-list>
-                    </v-card-text>
+                    <v-list v-if="isLoggedIn" density="compact" nav class="py-2">
+                        <v-list-item rounded="lg" prepend-icon="mdi-account-circle-outline" title="个人中心" @click="router.push('/user/info')" />
+                        <v-list-item rounded="lg" prepend-icon="mdi-pencil-box-outline" title="继续写作" @click="router.push('/write')" />
+                    </v-list>
 
-                    <v-card-actions class="px-4 pb-4 pt-0">
-                        <v-btn v-if="!isLoggedIn" block color="primary" prepend-icon="mdi-login" to="/login">登录</v-btn>
-                        <v-btn v-if="!isLoggedIn" block variant="tonal" prepend-icon="mdi-account-plus-outline" to="/register">注册</v-btn>
-                        <v-btn v-if="isLoggedIn" block color="error" variant="tonal" prepend-icon="mdi-logout" @click="handleLogout">退出登录</v-btn>
-                    </v-card-actions>
+                    <v-divider v-if="isLoggedIn" />
+
+                    <div v-if="!isLoggedIn" class="d-flex ga-2 pa-3">
+                        <v-btn color="primary" variant="flat" size="small" to="/login">登录</v-btn>
+                        <v-btn variant="outlined" size="small" to="/register">注册</v-btn>
+                    </div>
+                    <div v-else class="pa-3">
+                        <v-btn block color="error" variant="text" size="small" prepend-icon="mdi-logout" @click="handleLogout">退出登录</v-btn>
+                    </div>
                 </v-card>
             </v-menu>
         </v-app-bar>
@@ -78,8 +71,8 @@
         <v-navigation-drawer
             v-model="drawer"
             color="surface"
-            :temporary="smAndDown"
-            :permanent="!smAndDown"
+            :temporary="smAndDown || isFireflyPage"
+            :permanent="!smAndDown && !isFireflyPage"
             width="280"
         >
             <v-sheet color="primary" class="pa-5 text-white">
@@ -101,36 +94,37 @@
                 />
             </v-list>
 
-            <v-divider class="my-2" />
-
-            <v-list nav>
-                <v-list-subheader>会话</v-list-subheader>
-                <v-list-item
-                    :prepend-icon="isLoggedIn ? 'mdi-account-check-outline' : 'mdi-account-off-outline'"
-                    :title="isLoggedIn ? '已登录' : '未登录'"
-                    :subtitle="isLoggedIn ? (profile?.email || '账户信息已同步') : '登录后可读取日记数据'"
-                />
-                <v-list-item prepend-icon="mdi-theme-light-dark" title="主题切换" subtitle="浅色纸页 / 深色夜读" @click="preferencesStore.toggleTheme()" />
+            <v-list density="compact" nav class="pb-0">
+                <v-list-group value="about">
+                    <template #activator="{ props }">
+                        <v-list-item v-bind="props" prepend-icon="mdi-information-outline" title="关于" />
+                    </template>
+                    <v-list-item title="关于半页纸" to="/about" density="compact" />
+                    <v-list-item title="用户协议" to="/about/terms" density="compact" />
+                    <v-list-item title="隐私政策" to="/about/privacy" density="compact" />
+                    <v-list-item title="联系我们" href="mailto:support@halfpaper.com" density="compact" />
+                </v-list-group>
             </v-list>
+
+            <v-spacer />
+
+            <div class="pa-4 text-caption text-medium-emphasis opacity-60 text-center">
+                &copy; {{ new Date().getFullYear() }} HalfPaper
+            </div>
         </v-navigation-drawer>
 
-        <v-main>
-            <v-container fluid class="pa-4 pa-md-6">
-                <router-view />
-            </v-container>
+        <v-main class="app-main">
+            <div class="hp-shell">
+                <v-container class="hp-content hp-content--sm pa-4 pa-md-6 pa-lg-8">
+                    <router-view />
+                </v-container>
+            </div>
         </v-main>
-
-        <v-bottom-navigation :model-value="bottomNavValue" color="primary" grow height="68">
-            <v-btn v-for="item in bottomNavItems" :key="item.to" :to="item.to" :value="item.to">
-                <v-icon>{{ item.icon }}</v-icon>
-                <span>{{ item.title }}</span>
-            </v-btn>
-        </v-bottom-navigation>
 
         <v-dialog v-model="searchDialog" max-width="560">
             <v-card rounded="xl">
                 <v-card-title class="pb-0">搜索日记</v-card-title>
-                <v-card-text class="pt-4">
+                <v-card-text class="pa-7">
                     <v-text-field
                         v-model="searchText"
                         autofocus
@@ -200,28 +194,25 @@ const drawer = ref(!smAndDown.value)
 const searchDialog = ref(false)
 const searchText = ref(typeof route.query.q === 'string' ? route.query.q : '')
 
-const sideNavItems = [
-    { title: '首页', subtitle: '查看最近发布的日记', icon: 'mdi-notebook-outline', to: '/' },
-    { title: '写日记', subtitle: '新建草稿或直接发布', icon: 'mdi-pencil-box-outline', to: '/write' },
-    { title: '内容管理', subtitle: '草稿箱与已发布内容', icon: 'mdi-folder-edit-outline', to: '/manage/list' },
-    { title: '个人中心', subtitle: '账户信息与本地偏好', icon: 'mdi-account-cog-outline', to: '/user/info' }
-]
+const isFireflyPage = computed(() => route.path === '/firefly')
 
-const bottomNavItems = [
-    { title: '首页', icon: 'mdi-home-variant-outline', to: '/' },
-    { title: '写作', icon: 'mdi-pencil-outline', to: '/write' },
-    { title: '管理', icon: 'mdi-folder-outline', to: '/manage/list' },
-    { title: '我的', icon: 'mdi-account-outline', to: '/user/info' }
-]
+const sideNavItems = computed(() => {
+    const base = [
+        { title: '首页', icon: 'mdi-notebook-outline', to: '/' },
+    ]
+    if (isLoggedIn.value) {
+        base.push(
+            { title: '写日记', icon: 'mdi-pencil-box-outline', to: '/write' },
+            { title: '内容管理', icon: 'mdi-folder-edit-outline', to: '/manage/list' },
+            { title: '个人中心', icon: 'mdi-account-cog-outline', to: '/user/info' },
+            { title: '设置', icon: 'mdi-cog-outline', to: '/settings' },
+            { title: '我的收藏', icon: 'mdi-star', to: '/favorites' },
+        )
+    }
+    return base
+})
 
 const themeIcon = computed(() => themeName.value === 'halfpaperDark' ? 'mdi-weather-sunny' : 'mdi-weather-night')
-
-const bottomNavValue = computed(() => {
-    if (route.path.startsWith('/write')) return '/write'
-    if (route.path.startsWith('/manage/list')) return '/manage/list'
-    if (route.path.startsWith('/user/info')) return '/user/info'
-    return '/'
-})
 
 watch(themeName, (value) => {
     theme.global.name.value = value
@@ -233,6 +224,13 @@ watch(smAndDown, (value) => {
 
 watch(() => route.query.q, (value) => {
     searchText.value = typeof value === 'string' ? value : ''
+})
+
+watch(() => route.fullPath, () => {
+    // On mobile, collapse the temporary drawer after navigation.
+    if (smAndDown.value) {
+        drawer.value = false
+    }
 })
 
 onMounted(async () => {
@@ -264,8 +262,8 @@ function submitSearch(keyword = searchText.value) {
     searchDialog.value = false
 }
 
-function handleLogout() {
-    authStore.logout()
+async function handleLogout() {
+    await authStore.logout()
     SnackBar({
         text: '已清除当前登录状态',
         color: 'info',
@@ -276,4 +274,26 @@ function handleLogout() {
         router.replace('/login')
     }
 }
+
 </script>
+
+<style scoped>
+.app-main {
+    background: rgb(var(--v-theme-background));
+}
+
+.app-main--fullscreen {
+    padding-left: 0 !important;
+}
+
+.hp-shell--fullscreen {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.hp-content--firefly {
+    max-width: none;
+    padding: 0;
+}
+
+</style>

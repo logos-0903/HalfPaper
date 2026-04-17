@@ -161,6 +161,34 @@ export function validateDiaryImageFile(file) {
   }
 }
 
+export function getUploadErrorMessage(error, options = {}) {
+  const raw = String(error?.message || '').toLowerCase()
+  const fallback = options.fallback || '上传失败，请重试'
+
+  if (raw.includes('请选择要上传的图片')) {
+    return '请选择图片后重试'
+  }
+
+  if (raw.includes('图片格式不支持') || raw.includes('mime') || raw.includes('content-type')) {
+    return '图片格式不支持，请选择 JPG / PNG / GIF / HEIC / HEIF'
+  }
+
+  if (raw.includes('10mb') || raw.includes('图片大小') || raw.includes('too large') || raw.includes('entity too large')) {
+    return '图片太大了，请选择 10MB 以内的图片'
+  }
+
+  if (
+    error?.isNetworkError ||
+    raw.includes('network') ||
+    raw.includes('timeout') ||
+    raw.includes('failed to fetch')
+  ) {
+    return '网络异常，请检查网络后重试'
+  }
+
+  return fallback
+}
+
 async function uploadSingleFile(file, type = 'diary') {
   const presignPayload = {
     type: resolveUploadType(type),
@@ -241,4 +269,9 @@ export async function uploadImagesWithPresign(files, options = {}) {
   }
 
   return uploadedItems
+}
+
+export async function uploadAvatarImage(file) {
+  validateDiaryImageFile(file)
+  return uploadSingleFile(file, 'avatar')
 }
