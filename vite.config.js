@@ -10,7 +10,7 @@ export default defineConfig({
     vue(),
     // vueDevTools(),
   ],
-  base: '/HalfPaper/',
+  base: './',
   build: {
     outDir: 'dist'
   },
