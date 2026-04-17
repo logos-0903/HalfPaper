@@ -49,6 +49,10 @@
       <AiComfortCard ref="aiCardRef" :diary-id="diary.id" @opened="scrollToAiSection" />
     </div>
 
+    <v-alert v-if="!loading && !isPublishedDiary" type="warning" variant="tonal" rounded="xl" class="text-body-1">
+      该日记已被隐藏，暂时无法查看评论或进行互动。
+    </v-alert>
+
     <v-card v-if="!loading && isPublishedDiary" ref="commentSectionRef" rounded="xl" border>
       <v-card-title>评论区（{{ totalCommentCount }}）</v-card-title>
       <v-card-text class="pa-7 d-flex flex-column ga-4">

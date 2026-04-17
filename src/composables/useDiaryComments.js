@@ -535,7 +535,7 @@ export function useDiaryComments() {
 		} catch (error) {
 			console.error('[submit top comment error]', error)
 			SnackBar?.({
-				text: '评论失败，请稍后重试',
+				text: error.message || '评论失败，请稍后重试',
 				color: 'error',
 				icon: 'mdi-alert-circle-outline'
 			})
@@ -591,7 +591,7 @@ export function useDiaryComments() {
 		} catch (error) {
 			console.error('[submit reply error]', error)
 			SnackBar?.({
-				text: '回复失败，请稍后重试',
+				text: error.message || '回复失败，请稍后重试',
 				color: 'error',
 				icon: 'mdi-alert-circle-outline'
 			})

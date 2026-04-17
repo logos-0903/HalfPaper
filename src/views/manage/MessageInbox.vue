@@ -109,8 +109,10 @@ import PaginationBar from '@/components/PaginationBar.vue'
 import { DIARY_PAGE_SIZE_OPTIONS } from '@/constants/app'
 import { getUnreadMessageCount, listMessages, markAllMessagesRead, markMessageRead } from '@/services/api'
 import { formatDate } from '@/utils/format'
+import { useUnreadMessages } from '@/composables/useUnreadMessages'
 
 const SnackBar = inject('snack', null)
+const { refresh: refreshGlobalUnread } = useUnreadMessages()
 
 const loadingUnreadCounts = ref(false)
 const messageLoading = ref(false)
@@ -224,6 +226,7 @@ async function handleReadMessage(item) {
 			icon: 'mdi-check-circle-outline'
 		})
 		loadUnreadCounts()
+		refreshGlobalUnread()
 	} catch (error) {
 		showSnack({
 			text: error.message || '更新消息状态失败',
@@ -246,6 +249,7 @@ async function handleReadAllMessages() {
 			icon: 'mdi-check-circle-outline'
 		})
 		loadUnreadCounts()
+		refreshGlobalUnread()
 		await loadMessages()
 	} catch (error) {
 		showSnack({

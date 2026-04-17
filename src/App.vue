@@ -196,7 +196,7 @@ import { useSnack } from '@/composables/useSnack'
 import { useAuthStore } from '@/stores/auth'
 import { usePreferencesStore } from '@/stores/preferences'
 import { normalizeLevelInfo } from '@/utils/format'
-import { getUnreadMessageCount } from '@/services/api'
+import { useUnreadMessages } from '@/composables/useUnreadMessages'
 
 const route = useRoute()
 const router = useRouter()
@@ -219,7 +219,7 @@ const searchText = ref(typeof route.query.q === 'string' ? route.query.q : '')
 const isFireflyPage = computed(() => route.path === '/firefly')
 const levelInfo = computed(() => normalizeLevelInfo(profile.value?.level, profile.value?.exp))
 const isAdmin = computed(() => Boolean(profile.value?.is_admin) || profile.value?.role === 'admin')
-const unreadCount = ref(0)
+const { unreadCount } = useUnreadMessages()
 
 const sideNavItems = computed(() => {
     const base = [
@@ -265,9 +265,6 @@ watch(() => route.fullPath, () => {
 onMounted(async () => {
     try {
         await authStore.initialize()
-        if (authStore.isLoggedIn) {
-            loadUnreadCount()
-        }
     } catch (error) {
         if (!route.meta.requiresAuth) {
             SnackBar({
@@ -278,15 +275,6 @@ onMounted(async () => {
         }
     }
 })
-
-async function loadUnreadCount() {
-    try {
-        const data = await getUnreadMessageCount()
-        unreadCount.value = Number(data?.all || 0)
-    } catch {
-        // silently fail
-    }
-}
 
 function submitSearch(keyword = searchText.value) {
     const value = keyword.trim()
