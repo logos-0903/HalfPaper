@@ -27,6 +27,10 @@ export default defineConfig({
   preview: {
     proxy
   },
+  base: './',
+  build: {
+    outDir: 'dist'
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
