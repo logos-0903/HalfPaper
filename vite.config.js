@@ -13,7 +13,7 @@ export default defineConfig({
   base: '/HalfPaper/',
   build: {
     outDir: 'dist'
-  }
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
