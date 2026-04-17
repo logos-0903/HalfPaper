@@ -1,3 +1,7 @@
+/**
+ * 业务 API 统一出口
+ * 按功能分区：Auth / Diary / Comment / Favorite / Firefly / Admin / Settings
+ */
 import { request } from './http'
 
 function cleanObject(input) {
@@ -71,6 +75,39 @@ export function revokeAllSessions() {
   })
 }
 
+// ── Message ──────────────────────────────────────────
+
+export function listMessages(params = {}) {
+  return request({
+    url: '/message/list',
+    method: 'get',
+    params: cleanObject(params)
+  })
+}
+
+export function getUnreadMessageCount() {
+  return request({
+    url: '/message/unread',
+    method: 'get'
+  })
+}
+
+export function markMessageRead(messageId) {
+  return request({
+    url: '/message/read',
+    method: 'post',
+    data: { message_id: messageId }
+  })
+}
+
+export function markAllMessagesRead(category) {
+  return request({
+    url: '/message/read-all',
+    method: 'post',
+    data: cleanObject({ category })
+  })
+}
+
 // ── User ─────────────────────────────────────────────
 
 export function getUserInfo() {
@@ -85,6 +122,14 @@ export function getUserDetail(userUuid) {
     url: '/user/detail',
     method: 'get',
     params: { user_uuid: userUuid }
+  })
+}
+
+export function listSchools(params = {}) {
+  return request({
+    url: '/user/school/list',
+    method: 'get',
+    params: cleanObject(params)
   })
 }
 
@@ -112,11 +157,9 @@ export function deleteAccount(payload) {
   })
 }
 
-// ─── User (legacy, 等后端补充 /user/update) ────
-
 export function updateUserProfile(payload) {
   return request({
-    url: '/user/update',
+    url: '/user/profile',
     method: 'post',
     data: payload
   })
@@ -159,6 +202,22 @@ export function updateDiary(payload) {
 export function deleteDiary(diaryId) {
   return request({
     url: '/diary/delete',
+    method: 'post',
+    data: { diary_id: diaryId }
+  })
+}
+
+export function likeDiary(diaryId) {
+  return request({
+    url: '/diary/like',
+    method: 'post',
+    data: { diary_id: diaryId }
+  })
+}
+
+export function unlikeDiary(diaryId) {
+  return request({
+    url: '/diary/unlike',
     method: 'post',
     data: { diary_id: diaryId }
   })
@@ -226,18 +285,85 @@ export function deleteComment(commentId) {
 
 // ── Favorite ─────────────────────────────────────────
 
-export function toggleFavorite(diaryId) {
+export function favoriteDiary(diaryId) {
   return request({
     url: '/diary/favorite',
-    method: 'patch',
+    method: 'post',
+    data: { diary_id: diaryId }
+  })
+}
+
+export function unfavoriteDiary(diaryId) {
+  return request({
+    url: '/diary/unfavorite',
+    method: 'post',
     data: { diary_id: diaryId }
   })
 }
 
 export function listFavorites(params = {}) {
   return request({
-    url: '/diary/list',
+    url: '/diary/favorite/list',
     method: 'get',
-    params: cleanObject({ ...params, favorited: true })
+    params: cleanObject(params)
+  })
+}
+
+// ── Fireflies ───────────────────────────────────────
+
+export function listFireflies(params = {}) {
+  return request({
+    url: '/fireflies/list',
+    method: 'get',
+    params: cleanObject(params)
+  })
+}
+
+export function searchFireflies(params = {}) {
+  return request({
+    url: '/fireflies/search',
+    method: 'get',
+    params: cleanObject(params)
+  })
+}
+
+export function getFireflyTopicList() {
+  return request({
+    url: '/fireflies/topic/list',
+    method: 'get'
+  })
+}
+
+export function getFireflyHotTopics(params = {}) {
+  return request({
+    url: '/fireflies/topic/hot',
+    method: 'get',
+    params: cleanObject(params)
+  })
+}
+
+// ── Admin ────────────────────────────────────────────
+
+export function sendSystemMessage(payload) {
+  return request({
+    url: '/admin/message/system',
+    method: 'post',
+    data: payload
+  })
+}
+
+export function hideDiaryByAdmin(payload) {
+  return request({
+    url: '/admin/diary/hide',
+    method: 'post',
+    data: payload
+  })
+}
+
+export function hideCommentByAdmin(payload) {
+  return request({
+    url: '/admin/comment/hide',
+    method: 'post',
+    data: payload
   })
 }

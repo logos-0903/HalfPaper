@@ -1,6 +1,10 @@
+/**
+ * 日记评论 composable
+ * 处理评论列表加载、发表、回复、点赞及删除，支持嵌套回复展开
+ */
 import { computed, inject, reactive, ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import { createComment, likeComment, listCommentReplies, listComments, unlikeComment } from '@/services/api'
+import { createComment, deleteComment, likeComment, listCommentReplies, listComments, unlikeComment } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { formatDate } from '@/utils/format'
 
@@ -10,6 +14,8 @@ function normalizeCommentItem(item) {
 		diary_id: item?.diary_id || '',
 		root_id: item?.root_id ?? null,
 		parent_id: item?.parent_id ?? null,
+		owner_id: item?.member?.id ?? item?.member_id ?? item?.user_id ?? '',
+		owner_uuid: item?.member?.uuid ?? item?.member_uuid ?? item?.uuid ?? '',
 		content: item?.content || '',
 		created_at: item?.created_at || null,
 		member: item?.member || null,
@@ -26,6 +32,8 @@ function normalizeReplyItem(item) {
 		diary_id: item?.diary_id || '',
 		root_id: item?.root_id ?? null,
 		parent_id: item?.parent_id ?? null,
+		owner_id: item?.member?.id ?? item?.member_id ?? item?.user_id ?? '',
+		owner_uuid: item?.member?.uuid ?? item?.member_uuid ?? item?.uuid ?? '',
 		content: item?.content || '',
 		created_at: item?.created_at || null,
 		member: item?.member || null,
@@ -52,6 +60,10 @@ function uniqById(items) {
 function toPositiveNumber(value, fallback = 0) {
 	const parsed = Number(value)
 	return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback
+}
+
+function normalizeIdentity(value) {
+	return String(value || '').trim()
 }
 
 export function useDiaryComments() {
@@ -81,6 +93,7 @@ export function useDiaryComments() {
 
 	const rootReplyState = reactive({})
 	const commentLikeLoading = reactive({})
+	const commentDeleteLoading = reactive({})
 
 	const totalCommentCount = computed(() => Number(commentsTotal.value || comments.value.length))
 
@@ -103,7 +116,21 @@ export function useDiaryComments() {
 		}
 	}
 
+	const emptyRootState = {
+		loading: false,
+		page: 0,
+		nextPage: 1,
+		totalPages: 0,
+		total: 0,
+		replies: [],
+		loadedAll: false
+	}
+
 	function getRootState(rootId) {
+		return rootReplyState[rootId] || emptyRootState
+	}
+
+	function ensureRootState(rootId) {
 		if (!rootReplyState[rootId]) {
 			rootReplyState[rootId] = {
 				loading: false,
@@ -125,6 +152,31 @@ export function useDiaryComments() {
 
 	function getMemberName(member) {
 		return member?.username || '匿名用户'
+	}
+
+	function isOwnComment(commentItem) {
+		const currentUserUuid = normalizeIdentity(profile.value?.uuid)
+		const currentUserId = normalizeIdentity(profile.value?.id)
+		const ownerUuid = normalizeIdentity(commentItem?.owner_uuid || commentItem?.member?.uuid)
+		const ownerId = normalizeIdentity(commentItem?.owner_id || commentItem?.member?.id)
+
+		if (currentUserUuid && ownerUuid) {
+			return currentUserUuid === ownerUuid
+		}
+
+		if (currentUserId && ownerId) {
+			return currentUserId === ownerId
+		}
+
+		return false
+	}
+
+	function isAdminUser() {
+		return Boolean(profile.value?.is_admin) || profile.value?.role === 'admin'
+	}
+
+	function canRemoveComment(commentItem) {
+		return isOwnComment(commentItem) || isAdminUser()
 	}
 
 	function getReplyDisplayPrefix(rootComment, replyItem, allReplies) {
@@ -155,13 +207,6 @@ export function useDiaryComments() {
 
 	function getRootReplies(rootComment) {
 		const state = getRootState(rootComment.id)
-
-		if (!state.replies.length && Array.isArray(rootComment.replies)) {
-			state.replies = rootComment.replies.map(normalizeReplyItem)
-			state.total = rootComment.rcount || state.replies.length
-			state.loadedAll = state.replies.length >= state.total
-		}
-
 		return state.replies
 	}
 
@@ -201,6 +246,18 @@ export function useDiaryComments() {
 		}
 
 		commentLikeLoading[commentId] = Boolean(loading)
+	}
+
+	function isCommentDeleting(commentId) {
+		return Boolean(commentDeleteLoading[commentId])
+	}
+
+	function setCommentDeleteLoading(commentId, loading) {
+		if (!commentId) {
+			return
+		}
+
+		commentDeleteLoading[commentId] = Boolean(loading)
 	}
 
 	function patchLikeState(targetComment, serverPayload, nextLiked) {
@@ -250,7 +307,7 @@ export function useDiaryComments() {
 			return
 		}
 
-		const state = getRootState(rootComment?.id)
+		const state = ensureRootState(rootComment?.id)
 		const target = state.replies.find((item) => item.id === commentId)
 
 		if (!target) {
@@ -276,6 +333,41 @@ export function useDiaryComments() {
 			})
 		} finally {
 			setCommentLikeLoading(commentId, false)
+		}
+	}
+
+	async function removeComment(commentItem) {
+		const commentId = commentItem?.id
+
+		if (!commentId || !diaryId.value || isCommentDeleting(commentId) || !canRemoveComment(commentItem)) {
+			return
+		}
+
+		setCommentDeleteLoading(commentId, true)
+
+		try {
+			await deleteComment(commentId)
+
+			if (replyBox.rootId === commentId || replyBox.parentId === commentId) {
+				cancelReply()
+			}
+
+			SnackBar?.({
+				text: '评论已删除',
+				color: 'success',
+				icon: 'mdi-check-circle-outline'
+			})
+
+			await loadComments(diaryId.value)
+		} catch (error) {
+			console.error('[remove comment error]', error)
+			SnackBar?.({
+				text: '删除评论失败，请稍后重试',
+				color: 'error',
+				icon: 'mdi-alert-circle-outline'
+			})
+		} finally {
+			setCommentDeleteLoading(commentId, false)
 		}
 	}
 
@@ -344,7 +436,7 @@ export function useDiaryComments() {
 			return
 		}
 
-		const state = getRootState(rootId)
+		const state = ensureRootState(rootId)
 
 		if (state.loading) {
 			return
@@ -523,13 +615,17 @@ export function useDiaryComments() {
 		totalCommentCount,
 		formatCommentTime,
 		getMemberName,
+		isOwnComment,
+		canRemoveComment,
 		getRootReplies,
 		getReplyDisplayPrefix,
 		canShowLoadMore,
 		isCommentLikeLoading,
+		isCommentDeleting,
 		isReplyingRoot,
 		loadComments,
 		loadMoreReplies,
+		removeComment,
 		toggleRootCommentLike,
 		toggleChildCommentLike,
 		openReplyToRoot,

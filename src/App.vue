@@ -6,20 +6,38 @@
                 <div class="text-h6 font-weight-bold">{{ appName }}</div>
             </div>
 
+            <div class="d-flex align-center ga-2 ml-4">
+                <v-btn
+                    rounded="pill"
+                    :variant="route.path === '/' ? 'flat' : 'text'"
+                    :color="route.path === '/' ? 'primary' : undefined"
+                    @click="router.push('/')"
+                >
+                    首页
+                </v-btn>
+                <v-btn
+                    rounded="pill"
+                    :variant="route.path === '/firefly' ? 'flat' : 'text'"
+                    :color="route.path === '/firefly' ? 'primary' : undefined"
+                    @click="router.push('/firefly')"
+                >
+                    萤火集
+                </v-btn>
+            </div>
+
             <v-spacer />
 
             <template v-if="isLoggedIn">
                 <v-btn icon variant="text" @click="searchDialog = true">
                     <v-icon>mdi-magnify</v-icon>
                 </v-btn>
+                <v-btn icon variant="text" @click="router.push('/manage/messages')">
+                    <v-badge :content="unreadCount" :model-value="unreadCount > 0" color="error" floating>
+                        <v-icon>mdi-email-outline</v-icon>
+                    </v-badge>
+                </v-btn>
                 <v-btn icon variant="text" @click="preferencesStore.toggleTheme()">
                     <v-icon>{{ themeIcon }}</v-icon>
-                </v-btn>
-                <v-btn icon variant="text" @click="router.push('/firefly')">
-                    <v-icon>mdi-star-shooting</v-icon>
-                </v-btn>
-                <v-btn icon variant="text" @click="router.push('/settings')">
-                    <v-icon>mdi-cog-outline</v-icon>
                 </v-btn>
             </template>
 
@@ -44,15 +62,17 @@
                             </v-avatar>
                         </template>
 
-                        <v-card-title class="text-subtitle-1 font-weight-medium">{{ profile?.username || '访客' }}</v-card-title>
+                        <div class="d-flex align-center ga-2 flex-wrap">
+                            <v-card-title class="pa-0 text-subtitle-1 font-weight-medium">{{ profile?.username || '访客' }}</v-card-title>
+                            <v-chip v-if="isLoggedIn" color="primary" variant="tonal" size="small">Lv.{{ levelInfo.levelNumber }} {{ levelInfo.levelName }}</v-chip>
+                        </div>
                         <v-card-subtitle class="text-caption">{{ profile?.email || '登录后同步你的日记与草稿' }}</v-card-subtitle>
                     </v-card-item>
 
-                    <v-divider />
+                    
 
                     <v-list v-if="isLoggedIn" density="compact" nav class="py-2">
                         <v-list-item rounded="lg" prepend-icon="mdi-account-circle-outline" title="个人中心" @click="router.push('/user/info')" />
-                        <v-list-item rounded="lg" prepend-icon="mdi-pencil-box-outline" title="继续写作" @click="router.push('/write')" />
                     </v-list>
 
                     <v-divider v-if="isLoggedIn" />
@@ -71,8 +91,8 @@
         <v-navigation-drawer
             v-model="drawer"
             color="surface"
-            :temporary="smAndDown || isFireflyPage"
-            :permanent="!smAndDown && !isFireflyPage"
+            :temporary="smAndDown"
+            :permanent="!smAndDown"
             width="280"
         >
             <v-sheet color="primary" class="pa-5 text-white">
@@ -129,7 +149,7 @@
                         v-model="searchText"
                         autofocus
                         clearable
-                        label="输入标题或摘要关键字"
+                        label="输入标题或关键字"
                         prepend-inner-icon="mdi-magnify"
                         @keyup.enter="submitSearch()"
                     />
@@ -175,6 +195,8 @@ import { APP_NAME } from '@/constants/app'
 import { useSnack } from '@/composables/useSnack'
 import { useAuthStore } from '@/stores/auth'
 import { usePreferencesStore } from '@/stores/preferences'
+import { normalizeLevelInfo } from '@/utils/format'
+import { getUnreadMessageCount } from '@/services/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -195,19 +217,26 @@ const searchDialog = ref(false)
 const searchText = ref(typeof route.query.q === 'string' ? route.query.q : '')
 
 const isFireflyPage = computed(() => route.path === '/firefly')
+const levelInfo = computed(() => normalizeLevelInfo(profile.value?.level, profile.value?.exp))
+const isAdmin = computed(() => Boolean(profile.value?.is_admin) || profile.value?.role === 'admin')
+const unreadCount = ref(0)
 
 const sideNavItems = computed(() => {
     const base = [
-        { title: '首页', icon: 'mdi-notebook-outline', to: '/' },
+        { title: '首页', icon: 'mdi-pencil-box-outline', to: '/' },
     ]
     if (isLoggedIn.value) {
         base.push(
-            { title: '写日记', icon: 'mdi-pencil-box-outline', to: '/write' },
-            { title: '内容管理', icon: 'mdi-folder-edit-outline', to: '/manage/list' },
-            { title: '个人中心', icon: 'mdi-account-cog-outline', to: '/user/info' },
+            { title: '写日记', icon: 'mdi-pencil-outline', to: '/write' },
+            { title: '日记本', icon: 'mdi-notebook-outline', to: '/manage/list' }, 
+            { title: '收藏', icon: 'mdi-bookmark-outline', to: '/favorites' },
             { title: '设置', icon: 'mdi-cog-outline', to: '/settings' },
-            { title: '我的收藏', icon: 'mdi-star', to: '/favorites' },
         )
+        if (isAdmin.value) {
+            base.push(
+                { title: '管理员工具', icon: 'mdi-shield-crown-outline', to: '/manage/admin' },
+            )
+        }
     }
     return base
 })
@@ -236,6 +265,9 @@ watch(() => route.fullPath, () => {
 onMounted(async () => {
     try {
         await authStore.initialize()
+        if (authStore.isLoggedIn) {
+            loadUnreadCount()
+        }
     } catch (error) {
         if (!route.meta.requiresAuth) {
             SnackBar({
@@ -246,6 +278,15 @@ onMounted(async () => {
         }
     }
 })
+
+async function loadUnreadCount() {
+    try {
+        const data = await getUnreadMessageCount()
+        unreadCount.value = Number(data?.all || 0)
+    } catch {
+        // silently fail
+    }
+}
 
 function submitSearch(keyword = searchText.value) {
     const value = keyword.trim()

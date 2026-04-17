@@ -30,6 +30,7 @@
                 />
 
                 <div class="my-4">
+                    <div class="text-body-2 text-medium-emphasis mb-2">请完成人机验证</div>
                     <VueHcaptcha ref="captchaRef" :sitekey="HCAPTCHA_SITE_KEY" @verify="onCaptchaVerify" @expired="resetCaptcha" />
                 </div>
 
@@ -66,11 +67,11 @@ const showPassword = ref(false)
 const captchaToken = ref('')
 
 const form = reactive({
-    email: '',
-    password: ''
+    email: 'admin@123.com',
+    password: 'admin123'
 })
 
-const canSubmit = computed(() => form.email.trim() && form.password && captchaToken.value)
+const canSubmit = computed(() => String(form.email || '').trim() && form.password && captchaToken.value)
 
 function onCaptchaVerify(token) {
     captchaToken.value = token
@@ -93,7 +94,7 @@ async function submit() {
         const password = await hashPassword(form.password)
 
         await authStore.login({
-            email: form.email.trim(),
+            email: String(form.email || '').trim(),
             password,
             token: captchaToken.value
         })

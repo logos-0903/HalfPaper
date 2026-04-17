@@ -1,3 +1,7 @@
+/**
+ * AI 慰问 composable
+ * 实现日记详情页 AI 聊天功能：历史加载 -> SSE 流式对话 -> 打字机动画
+ */
 import { computed, inject, onBeforeUnmount, reactive, ref } from 'vue'
 import { getAiDiaryHistory, postAiDiaryStream } from '@/services/ai'
 

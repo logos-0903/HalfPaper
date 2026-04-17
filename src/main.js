@@ -24,7 +24,7 @@ const vuetify = createVuetify({
     sets: { mdi }
   },
   locale: {
-    locale: 'zh-hans',
+    locale: 'zhHans',
     messages: { zhHans }
   },
   theme: {

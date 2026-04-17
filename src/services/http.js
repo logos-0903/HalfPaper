@@ -1,3 +1,7 @@
+/**
+ * HTTP 客户端封装
+ * 基于 Axios，统一处理接口响应、错误码和登录过期重定向
+ */
 import axios from 'axios'
 import { API_BASE_URL } from '@/constants/app'
 

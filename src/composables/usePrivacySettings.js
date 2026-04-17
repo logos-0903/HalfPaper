@@ -1,3 +1,7 @@
+/**
+ * 隐私权限设置 composable
+ * 管理日记默认可见性、内容权限及批量删除日记操作
+ */
 import { inject, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { deleteDiary, listDiaries } from '@/services/api'
 import {

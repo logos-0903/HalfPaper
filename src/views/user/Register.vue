@@ -58,6 +58,7 @@
                 </v-row>
 
                 <div class="my-4">
+                    <div class="text-body-2 text-medium-emphasis mb-2">请完成人机验证</div>
                     <VueHcaptcha ref="captchaRef" :sitekey="HCAPTCHA_SITE_KEY" @verify="onCaptchaVerify" @expired="resetCaptcha" />
                 </div>
 
@@ -104,14 +105,17 @@ const form = reactive({
 
 let countdownTimer = null
 
-const emailValid = computed(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
-const usernameValid = computed(() => form.username.trim().length >= 5 && form.username.trim().length <= 16)
-const passwordValid = computed(() => form.password.length >= 6)
+const emailValid = computed(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(form.email || '').trim()))
+const usernameValid = computed(() => {
+    const len = String(form.username || '').trim().length
+    return len >= 5 && len <= 16
+})
+const passwordValid = computed(() => String(form.password || '').length >= 6)
 const passwordConfirmed = computed(() => form.password && form.password === form.confirmPassword)
 
 const canSendCode = computed(() => emailValid.value && countdown.value === 0 && !sendingCode.value)
 const canRegister = computed(() => {
-    return usernameValid.value && emailValid.value && passwordValid.value && passwordConfirmed.value && form.mail_code.trim() && captchaToken.value
+    return usernameValid.value && emailValid.value && passwordValid.value && passwordConfirmed.value && String(form.mail_code || '').trim() && captchaToken.value
 })
 
 onBeforeUnmount(() => {
@@ -154,9 +158,14 @@ async function sendCode() {
     }
 
     sendingCode.value = true
+    SnackBar?.({
+        text: '正在进行人机验证，请稍候…',
+        color: 'info',
+        icon: 'mdi-shield-check-outline'
+    })
 
     try {
-        await sendEmailVerify(form.email.trim())
+        await sendEmailVerify(String(form.email || '').trim())
         startCountdown()
         SnackBar?.({
             text: '邮箱验证码已发送，请注意查收',
@@ -185,11 +194,11 @@ async function submitRegister() {
         const password = await hashPassword(form.password)
 
         await authStore.register({
-            username: form.username.trim(),
-            email: form.email.trim(),
+            username: String(form.username || '').trim(),
+            email: String(form.email || '').trim(),
             password,
             token: captchaToken.value,
-            mail_code: form.mail_code.trim()
+            mail_code: String(form.mail_code || '').trim()
         })
 
         SnackBar?.({

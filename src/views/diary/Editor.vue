@@ -62,10 +62,6 @@
         </v-alert>
 
         <div class="mb-4 mt-3">
-          <div class="d-flex align-center justify-space-between mb-2 flex-wrap ga-1">
-            <div class="text-subtitle-2 font-weight-medium">上传照片（{{ totalImageCount }}/9）</div>
-            <div class="text-caption text-medium-emphasis">支持 JPEG/PNG/GIF/HEIC/HEIF，单张不超过 10MB</div>
-          </div>
 
           <input
             ref="photoInput"

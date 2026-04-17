@@ -150,6 +150,7 @@
               </v-row>
 
               <div class="mt-3">
+                <div class="text-body-2 text-medium-emphasis mb-2">请完成人机验证</div>
                 <VueHcaptcha ref="captchaRef" :sitekey="HCAPTCHA_SITE_KEY" @verify="onCaptchaVerify" @expired="resetCaptcha" />
               </div>
             </v-form>

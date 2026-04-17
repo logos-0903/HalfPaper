@@ -27,10 +27,6 @@ export const MOOD_OPTIONS = [
   '期待'
 ].map((item) => ({ title: item, value: item }))
 
-export const THEME_OPTIONS = [
-  { title: '浅色纸页', value: 'halfpaperLight' },
-  { title: '深色夜读', value: 'halfpaperDark' }
-]
 
 export const DIARY_PAGE_SIZE_OPTIONS = [10, 20, 30, 50].map((value) => ({
   title: `${value} 条 / 页`,

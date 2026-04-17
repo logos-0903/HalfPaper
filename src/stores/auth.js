@@ -1,3 +1,7 @@
+/**
+ * 认证状态管理
+ * 负责登录/注册/登出流程，维护用户 profile 并缓存至 localStorage
+ */
 import { defineStore } from 'pinia'
 import { getUserInfo, login, logout as logoutApi, register } from '@/services/api'
 import { clearSessionCookies } from '@/utils/security'

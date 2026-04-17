@@ -1,10 +1,10 @@
 import { computed, inject, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
+import { API_BASE_URL } from '@/constants/app'
 import { listSchools, updateUserProfile } from '@/services/api'
 import { getUploadErrorMessage, uploadAvatarImage, validateDiaryImageFile } from '@/services/upload'
 import { useAuthStore } from '@/stores/auth'
-import { resolveImageUrl } from '@/utils/image'
 
 const SEX_OPTIONS = [
   { title: '男', value: '男' },
@@ -67,7 +67,7 @@ export function useUserEditor() {
 
   let schoolSearchTimer = 0
 
-  const avatarUrl = computed(() => resolveImageUrl(form.avatar))
+  const avatarUrl = computed(() => resolveAvatarUrl(form.avatar))
   const cropZoom = computed({
     get: () => cropState.zoom,
     set: (value) => setCropZoom(value)
@@ -143,6 +143,24 @@ export function useUserEditor() {
     return String(value).padStart(2, '0')
   }
 
+  function resolveAvatarUrl(value) {
+    const avatar = String(value || '').trim()
+
+    if (!avatar) {
+      return ''
+    }
+
+    if (/^https?:\/\//i.test(avatar) || /^blob:/i.test(avatar) || /^data:/i.test(avatar)) {
+      return avatar
+    }
+
+    if (avatar.startsWith('/')) {
+      return `${API_BASE_URL}${avatar}`
+    }
+
+    return `${API_BASE_URL}/${avatar.replace(/^\/+/, '')}`
+  }
+
   function goBack() {
     router.push('/user/info')
   }
@@ -215,7 +233,7 @@ export function useUserEditor() {
       const uploaded = await uploadAvatarImage(file)
       uploadedAvatarFilename.value = uploaded.filename
 
-      const nextAvatar = resolveImageUrl(uploaded.filename)
+      const nextAvatar = resolveAvatarUrl(uploaded.filename)
       if (nextAvatar) {
         form.avatar = nextAvatar
       }
@@ -590,13 +608,11 @@ export function useUserEditor() {
   }
 
   function validateProfileForm() {
-    const username = String(form.username || '').trim()
-
-    if (!username) {
+    if (!form.username.trim()) {
       return '请输入用户名'
     }
 
-    if (username.length < 5 || username.length > 16) {
+    if (form.username.trim().length < 5 || form.username.trim().length > 16) {
       return '用户名需为 5 到 16 位'
     }
 
@@ -604,7 +620,7 @@ export function useUserEditor() {
       return '请选择性别'
     }
 
-    if (String(form.schoolQuery || '').trim() && !form.schoolCode) {
+    if (form.schoolQuery.trim() && !form.schoolCode) {
       return '请选择学校列表中的有效项'
     }
 
@@ -613,9 +629,9 @@ export function useUserEditor() {
 
   function buildProfilePayload() {
     const currentProfile = profile.value || {}
-    const nextUsername = String(form.username || '').trim()
+    const nextUsername = form.username.trim()
     const nextSex = form.sex
-    const nextSign = String(form.sign || '').trim()
+    const nextSign = form.sign.trim()
     const nextBirthday = form.birthday || ''
     const nextSchoolCode = form.schoolCode || ''
     const payload = {}
@@ -680,7 +696,7 @@ export function useUserEditor() {
       }
 
       if (mergedProfile.avatar) {
-        mergedProfile.avatar = resolveImageUrl(mergedProfile.avatar)
+        mergedProfile.avatar = resolveAvatarUrl(mergedProfile.avatar)
       }
 
       authStore.setProfile(mergedProfile)

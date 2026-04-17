@@ -1,9 +1,9 @@
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
+import { API_BASE_URL } from '@/constants/app'
 import { useAuthStore } from '@/stores/auth'
 import { formatDate, normalizeLevelInfo, toDisplayText } from '@/utils/format'
-import { resolveImageUrl } from '@/utils/image'
 
 export function useUserInfo() {
   const router = useRouter()
@@ -11,7 +11,7 @@ export function useUserInfo() {
 
   const { profile } = storeToRefs(authStore)
 
-  const avatarUrl = computed(() => resolveImageUrl(profile.value?.avatar))
+  const avatarUrl = computed(() => resolveAvatarUrl(profile.value?.avatar))
   const levelInfo = computed(() => normalizeLevelInfo(profile.value?.level, profile.value?.exp))
 
   const statsCards = computed(() => [
@@ -33,6 +33,24 @@ export function useUserInfo() {
 
   function goToEditor() {
     router.push('/user/edit')
+  }
+
+  function resolveAvatarUrl(value) {
+    const avatar = String(value || '').trim()
+
+    if (!avatar) {
+      return ''
+    }
+
+    if (/^https?:\/\//i.test(avatar) || /^blob:/i.test(avatar) || /^data:/i.test(avatar)) {
+      return avatar
+    }
+
+    if (avatar.startsWith('/')) {
+      return `${API_BASE_URL}${avatar}`
+    }
+
+    return `${API_BASE_URL}/${avatar.replace(/^\/+/, '')}`
   }
 
   function formatBirthday(value) {

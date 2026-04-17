@@ -14,6 +14,11 @@ function pad2(value) {
   return String(value).padStart(2, '0')
 }
 
+function toSafeNumber(value, fallback = 0) {
+  const nextValue = Number(value)
+  return Number.isFinite(nextValue) ? nextValue : fallback
+}
+
 export function formatDate(value) {
   const date = toDate(value)
 
@@ -86,4 +91,37 @@ export function summarizeText(text, limit = 120) {
 
 export function toDisplayText(value, fallback = '未填写') {
   return value || fallback
+}
+
+export function normalizeLevelInfo(level, expValue) {
+  const currentExp = Math.max(0, toSafeNumber(expValue ?? level?.exp, 0))
+  const levelNumber = Math.max(1, toSafeNumber(level?.level, 1))
+  const levelName = String(level?.level_name || `Lv.${levelNumber}`)
+  const levelMinExp = Math.max(0, toSafeNumber(level?.level_min_exp, 0))
+  const isMaxLevel = Boolean(level?.is_max_level)
+  const rawNextLevelExp = toSafeNumber(level?.next_level_exp, currentExp)
+  const nextLevelExp = isMaxLevel ? currentExp : Math.max(rawNextLevelExp, currentExp)
+  const range = Math.max(0, nextLevelExp - levelMinExp)
+
+  let progressRatio = Number(level?.progress)
+
+  if (!Number.isFinite(progressRatio)) {
+    progressRatio = range > 0 ? (currentExp - levelMinExp) / range : 1
+  }
+
+  progressRatio = Math.min(1, Math.max(0, progressRatio))
+
+  return {
+    levelNumber,
+    levelName,
+    currentExp,
+    levelMinExp,
+    nextLevelExp,
+    isMaxLevel,
+    progressRatio,
+    progressPercent: Math.round(progressRatio * 100),
+    progressText: isMaxLevel
+      ? `当前经验 ${currentExp}，已达到最高等级`
+      : `当前经验 ${currentExp} / 下一等级 ${nextLevelExp}`
+  }
 }

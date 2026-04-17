@@ -1,7 +1,11 @@
+/**
+ * 日记编辑器 ViewModel
+ * 统一管理日记的创建/编辑状态、图片上传、草稿保存、发布流程
+ */
 import { computed, inject, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { API_BASE_URL, MOOD_OPTIONS, VISIBILITY_OPTIONS, WEATHER_OPTIONS } from '@/constants/app'
-import { createDiary, getDiaryDetail, updateDiary } from '@/services/api'
+import { createDiary, getDiaryDetail, getFireflyTopicList, updateDiary } from '@/services/api'
 import { getUploadErrorMessage, uploadImagesWithPresign, validateDiaryImageFile } from '@/services/upload'
 import { formatDate, summarizeText } from '@/utils/format'
 
@@ -12,6 +16,7 @@ export function useDiaryEditorViewModel() {
   const MAX_IMAGE_COUNT = 9
 
   const loading = ref(false)
+  const loadingTopics = ref(false)
   const submitting = ref(false)
   const uploadingPhotos = ref(false)
   const currentStatus = ref('draft')
@@ -35,6 +40,8 @@ export function useDiaryEditorViewModel() {
     mood: '',
     topic_id: ''
   })
+
+  const topicOptions = ref([])
 
   const isFireflyMode = computed(() => route.query.source === 'firefly')
 
@@ -83,6 +90,8 @@ export function useDiaryEditorViewModel() {
     }
   }, { immediate: true })
 
+  loadTopicOptions()
+
   function resetForm() {
     currentDiaryId.value = ''
     currentStatus.value = 'draft'
@@ -103,6 +112,28 @@ export function useDiaryEditorViewModel() {
 
   function visibilityText(value) {
     return VISIBILITY_OPTIONS.find((item) => item.value === value)?.title || value || '未设置'
+  }
+
+  async function loadTopicOptions() {
+    loadingTopics.value = true
+
+    try {
+      const data = await getFireflyTopicList()
+      topicOptions.value = (data?.list || []).map((item) => ({
+        title: item?.name || `话题 ${item?.id ?? ''}`,
+        value: item?.id,
+        desc: item?.desc || ''
+      }))
+    } catch (error) {
+      topicOptions.value = []
+      SnackBar?.({
+        text: error.message || '获取话题列表失败',
+        color: 'error',
+        icon: 'mdi-alert-circle-outline'
+      })
+    } finally {
+      loadingTopics.value = false
+    }
   }
 
   function goBack() {
@@ -156,8 +187,8 @@ export function useDiaryEditorViewModel() {
     const topicValue = Number(form.topic_id)
 
     return {
-      title: form.title.trim() || undefined,
-      content: form.content.trim() || undefined,
+      title: String(form.title || '').trim() || undefined,
+      content: String(form.content || '').trim() || undefined,
       visibility: form.visibility || undefined,
       weather: form.weather || undefined,
       mood: form.mood || undefined,
@@ -534,7 +565,7 @@ export function useDiaryEditorViewModel() {
       return
     }
 
-    if (!form.title.trim() && !form.content.trim()) {
+    if (!String(form.title || '').trim() && !String(form.content || '').trim()) {
       SnackBar?.({
         text: '发布日记时标题和正文至少填写一项',
         color: 'warning',
@@ -604,11 +635,13 @@ export function useDiaryEditorViewModel() {
 
   return {
     loading,
+    loadingTopics,
     goBack,
     pageTitle,
     currentStatus,
     form,
     isFireflyMode,
+    topicOptions,
     VISIBILITY_OPTIONS,
     WEATHER_OPTIONS,
     MOOD_OPTIONS,

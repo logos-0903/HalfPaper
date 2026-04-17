@@ -27,7 +27,7 @@ export default defineConfig({
   preview: {
     proxy
   },
-  base: './',
+  base: '/',
   build: {
     outDir: 'dist'
   },

@@ -1,7 +1,3 @@
-/**
- * 账号安全设置 composable
- * 处理密码修改流程：邮箱验证码 + hCaptcha 人机验证 + 密码哈希提交
- */
 import { computed, inject, onBeforeUnmount, reactive, ref } from 'vue'
 import { sendEmailVerify, changePassword } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'

@@ -1,3 +1,9 @@
+/**
+ * 应用路由配置
+ * - requiresAuth: 需登录后访问
+ * - requiresAdmin: 需管理员权限
+ * - guestOnly: 仅未登录用户可访问
+ */
 import { createRouter, createWebHistory } from 'vue-router'
 import Home from '../views/Home.vue'
 import { pinia } from '@/stores'
@@ -36,8 +42,20 @@ const routes = [
   {
     path: '/manage/list',
     name: 'manage-list',
-    component: () => import('../views/manage/List.vue'),
+    component: () => import('../views/manage/DiaryManager.vue'),
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/manage/messages',
+    name: 'manage-messages',
+    component: () => import('../views/manage/MessageInbox.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/manage/admin',
+    name: 'manage-admin',
+    component: () => import('../views/manage/ModerationCenter.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
   },
   {
     path: '/user/info',
@@ -48,13 +66,13 @@ const routes = [
   {
     path: '/user/edit',
     name: 'user-editor',
-    component: () => import('../views/user/Editor.vue'),
+    component: () => import('../views/user/ProfileEditor.vue'),
     meta: { requiresAuth: true }
   },
   {
     path: '/settings/:tab?',
     name: 'settings',
-    component: () => import('../views/user/ProfileDetail.vue'),
+    component: () => import('../views/user/settings/ProfileSettings.vue'),
     meta: { requiresAuth: true }
   },
   {
@@ -94,6 +112,13 @@ router.beforeEach(async (to) => {
 
   if (to.meta.guestOnly && authStore.isLoggedIn) {
     return { path: '/' }
+  }
+
+  if (to.meta.requiresAdmin) {
+    const isAdmin = Boolean(authStore.profile?.is_admin) || authStore.profile?.role === 'admin'
+    if (!isAdmin) {
+      return { path: '/' }
+    }
   }
 
   if (to.meta.requiresAuth && !authStore.isLoggedIn) {

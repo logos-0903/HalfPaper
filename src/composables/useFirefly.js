@@ -1,115 +1,26 @@
+/**
+ * 萤火社区 composable
+ * 公开日记信息流、热门话题、搜索及收藏交互
+ */
 import { inject, ref } from 'vue'
-import { API_BASE_URL } from '@/constants/app'
-import { listDiaries } from '@/services/api'
+import {
+  favoriteDiary,
+  getFireflyHotTopics,
+  getFireflyTopicList,
+  listFireflies,
+  searchFireflies,
+  unfavoriteDiary
+} from '@/services/api'
 import { summarizeText } from '@/utils/format'
+import { normalizeImageList, resolveImageUrl } from '@/utils/image'
 
 const FEED_PAGE_SIZE = 20
-const HOT_PAGE_SIZE = 60
 
-const FIREFLY_TAB_ITEMS = [
-  { title: '最新', value: 'latest' },
-  { title: '热门', value: 'hot' },
-  { title: '关注', value: 'follow' }
-]
-
-const FIREFLY_TAG_ITEMS = [
-  { title: '全部', value: 'all' },
-  { title: '#今夜难眠', value: 'insomnia' },
-  { title: '#想家', value: 'homesick' },
-  { title: '#一个人', value: 'alone' },
-  { title: '#小确幸', value: 'little-joy' },
-  { title: '#发泄', value: 'vent' },
-  { title: '#碎碎念', value: 'murmur' },
-  { title: '#成长', value: 'growth' }
-]
-
-const TAG_RULES = {
-  insomnia: ['失眠', '睡不着', '夜里', '凌晨', '今夜'],
-  homesick: ['想家', '家乡', '回家', '爸妈', '故乡'],
-  alone: ['一个人', '独自', '孤单', '孤独'],
-  'little-joy': ['开心', '满足', '幸运', '治愈', '小确幸'],
-  vent: ['烦', '压力', '崩溃', '发泄', '难受'],
-  murmur: ['碎碎念', '日常', '随手记', '今天', '琐事'],
-  growth: ['成长', '复盘', '学习', '进步', '目标']
-}
+const FIREFLY_TAB_ITEMS = [{ title: '最新', value: 'latest' }, { title: '热门', value: 'hot' }]
 
 function toSafeNumber(value, fallback = 0) {
   const num = Number(value)
   return Number.isFinite(num) ? num : fallback
-}
-
-function parseImagesField(images) {
-  if (!images) {
-    return []
-  }
-
-  let parsed = images
-
-  if (typeof parsed === 'string') {
-    try {
-      parsed = JSON.parse(parsed)
-    } catch {
-      parsed = [parsed]
-    }
-  }
-
-  if (!Array.isArray(parsed)) {
-    return []
-  }
-
-  return parsed
-}
-
-function resolveImageUrl(raw) {
-  const value = String(raw || '').trim()
-
-  if (!value) {
-    return ''
-  }
-
-  if (/^https?:\/\//i.test(value) || /^blob:/i.test(value) || /^data:/i.test(value)) {
-    return value
-  }
-
-  if (value.startsWith('/')) {
-    return `${API_BASE_URL}${value}`
-  }
-
-  return `${API_BASE_URL}/${value.replace(/^\/+/, '')}`
-}
-
-function normalizeImageList(images) {
-  return parseImagesField(images)
-    .map((item) => {
-      const raw = typeof item === 'string'
-        ? item
-        : item?.url || item?.src || item?.filename || ''
-
-      const url = resolveImageUrl(raw)
-
-      if (!url) {
-        return null
-      }
-
-      return { url }
-    })
-    .filter(Boolean)
-}
-
-function resolveTagValue(inputText) {
-  const text = String(inputText || '').toLowerCase()
-
-  if (!text) {
-    return 'murmur'
-  }
-
-  for (const [tag, words] of Object.entries(TAG_RULES)) {
-    if (words.some((word) => text.includes(String(word).toLowerCase()))) {
-      return tag
-    }
-  }
-
-  return 'murmur'
 }
 
 function buildImageLayout(images) {
@@ -175,45 +86,29 @@ function normalizeDiaryItem(item, index = 0) {
   const title = String(item?.title || '').trim() || '无标题日记'
   const summary = String(item?.summary || item?.content || '').trim()
   const mood = String(item?.mood || '').trim()
-  const textForTag = `${title} ${summary} ${mood}`
-  const tag = resolveTagValue(textForTag)
   const images = normalizeImageList(item?.images)
+  const author = item?.author || item?.member || null
+  const authorName = String(author?.username || item?.username || '萤火用户')
 
   return {
     id,
     title,
     preview: summarizeText(summary, 180),
-    createdAt: item?.updated_at || item?.created_at || '',
-    authorName: String(item?.member?.username || item?.username || '萤火用户'),
-    authorInitial: String(item?.member?.username || item?.username || '萤').slice(0, 1),
-    authorAvatar: resolveImageUrl(item?.member?.avatar || item?.avatar || ''),
+    createdAt: item?.published_at || item?.updated_at || item?.created_at || '',
+    authorName,
+    authorInitial: authorName.slice(0, 1) || '萤',
+    authorAvatar: resolveImageUrl(author?.avatar || item?.avatar || ''),
     likeCount: toSafeNumber(item?.like_count, 0),
+    favoriteCount: toSafeNumber(item?.favorite_count, 0),
     commentCount: toSafeNumber(item?.comment_count, 0),
-    liked: Boolean(item?.is_liked),
+    isFavorited: Boolean(item?.is_favorited),
     mood,
-    fireflyTag: tag,
+    weather: String(item?.weather || '').trim(),
+    topicId: item?.topic?.id ?? item?.topic_id ?? null,
+    topicName: String(item?.topic?.name || '').trim(),
+    topicDesc: String(item?.topic?.desc || '').trim(),
     imageLayout: buildImageLayout(images)
   }
-}
-
-function sortFeedItems(items, tab) {
-  if (tab === 'hot') {
-    return [...items].sort((a, b) => (b.likeCount + b.commentCount) - (a.likeCount + a.commentCount))
-  }
-
-  if (tab === 'follow') {
-    return [...items].filter((item) => item.fireflyTag === 'growth' || item.fireflyTag === 'little-joy')
-  }
-
-  return [...items]
-}
-
-function filterByTag(items, tag) {
-  if (tag === 'all') {
-    return items
-  }
-
-  return items.filter((item) => item.fireflyTag === tag)
 }
 
 export function useFirefly() {
@@ -221,30 +116,54 @@ export function useFirefly() {
 
   const loadingFeed = ref(false)
   const loadingHotList = ref(false)
+  const loadingTopics = ref(false)
   const feedList = ref([])
   const feedTotal = ref(0)
   const hotList = ref([])
+  const topicList = ref([])
   const activeTab = ref('latest')
-  const activeTag = ref('all')
+  const activeTopicId = ref(null)
+  const searchKeyword = ref('')
 
-  async function fetchFeed(tab = activeTab.value, tag = activeTag.value, page = 1, pageSize = FEED_PAGE_SIZE) {
+  async function fetchFeed({
+    tab = activeTab.value,
+    topicId = activeTopicId.value,
+    keyword = searchKeyword.value,
+    page = 1,
+    pageSize = FEED_PAGE_SIZE
+  } = {}) {
     loadingFeed.value = true
 
     try {
-      const data = await listDiaries({
+      const trimmedKeyword = String(keyword || '').trim()
+      const params = {
         pn: page,
         ps: pageSize,
-        status: 'active'
-      })
+        topic_id: topicId || undefined
+      }
+      const data = trimmedKeyword
+        ? await searchFireflies({
+          ...params,
+          q: trimmedKeyword
+        })
+        : await listFireflies({
+          ...params,
+          sort: tab
+        })
 
-      const normalized = (data?.lists || []).map((item, index) => normalizeDiaryItem(item, index))
-      const sorted = sortFeedItems(normalized, tab)
-      const filtered = filterByTag(sorted, tag)
-
-      feedList.value = filtered
+      feedList.value = (data?.lists || []).map((item, index) => normalizeDiaryItem(item, index))
       feedTotal.value = Number(data?.total || 0)
       activeTab.value = tab
-      activeTag.value = tag
+      activeTopicId.value = topicId || null
+      searchKeyword.value = trimmedKeyword
+
+      if (!topicList.value.length && Array.isArray(data?.topics) && data.topics.length) {
+        topicList.value = data.topics.map((item) => ({
+          id: item?.id,
+          name: item?.name || `话题 ${item?.id ?? ''}`,
+          desc: item?.desc || ''
+        }))
+      }
     } catch (error) {
       feedList.value = []
       feedTotal.value = 0
@@ -259,65 +178,75 @@ export function useFirefly() {
     }
   }
 
-  function toggleLike(diaryId) {
-    if (!diaryId) {
+  async function fetchTopicList() {
+    loadingTopics.value = true
+
+    try {
+      const data = await getFireflyTopicList()
+      topicList.value = (data?.list || []).map((item) => ({
+        id: item?.id,
+        name: item?.name || `话题 ${item?.id ?? ''}`,
+        desc: item?.desc || ''
+      }))
+    } catch (error) {
+      topicList.value = []
+      SnackBar?.({
+        text: error.message || '获取话题列表失败',
+        color: 'error',
+        icon: 'mdi-alert-circle-outline'
+      })
+    } finally {
+      loadingTopics.value = false
+    }
+  }
+
+  async function toggleFavorite(diary) {
+    if (!diary?.id) {
       return
     }
 
-    const syncLike = (target) => {
-      if (!target || target.id !== diaryId) {
-        return target
-      }
+    const previousFavorited = Boolean(diary.isFavorited)
+    const previousCount = Number(diary.favoriteCount || 0)
+    const nextFavorited = !previousFavorited
 
-      const nextLiked = !target.liked
-      const nextCount = Math.max(0, target.likeCount + (nextLiked ? 1 : -1))
+    diary.isFavorited = nextFavorited
+    diary.favoriteCount = Math.max(0, previousCount + (nextFavorited ? 1 : -1))
 
-      return {
-        ...target,
-        liked: nextLiked,
-        likeCount: nextCount
+    try {
+      const data = nextFavorited
+        ? await favoriteDiary(diary.id)
+        : await unfavoriteDiary(diary.id)
+
+      if (data && typeof data === 'object') {
+        diary.isFavorited = Boolean(data.is_favorited)
+        diary.favoriteCount = Number(data.favorite_count ?? diary.favoriteCount ?? 0)
       }
+    } catch (error) {
+      diary.isFavorited = previousFavorited
+      diary.favoriteCount = previousCount
+
+      SnackBar?.({
+        text: error.message || '收藏操作失败',
+        color: 'error',
+        icon: 'mdi-alert-circle-outline'
+      })
     }
-
-    feedList.value = feedList.value.map(syncLike)
-    hotList.value = hotList.value.map((item) => {
-      if (item.id !== diaryId) {
-        return item
-      }
-
-      const nextLiked = !item.liked
-      const nextCount = Math.max(0, item.likeCount + (nextLiked ? 1 : -1))
-
-      return {
-        ...item,
-        liked: nextLiked,
-        likeCount: nextCount
-      }
-    })
   }
 
   async function fetchHotList() {
     loadingHotList.value = true
 
     try {
-      const data = await listDiaries({
-        pn: 1,
-        ps: HOT_PAGE_SIZE,
-        status: 'active'
-      })
+      const data = await getFireflyHotTopics({ limit: 8 })
 
-      const normalized = (data?.lists || []).map((item, index) => normalizeDiaryItem(item, index))
-
-      hotList.value = normalized
-        .sort((a, b) => (b.likeCount + b.commentCount) - (a.likeCount + a.commentCount))
-        .slice(0, 8)
-        .map((item, index) => ({
-          id: item.id,
-          rank: index + 1,
-          title: item.title,
-          likeCount: item.likeCount,
-          liked: item.liked
-        }))
+      hotList.value = (data?.list || []).map((item, index) => ({
+        id: item?.id,
+        rank: Number(item?.rank || index + 1),
+        name: item?.name || `话题 ${item?.id ?? ''}`,
+        desc: item?.desc || '',
+        diaryCount: toSafeNumber(item?.diary_count, 0),
+        heatScore: Number(item?.heat_score || 0)
+      }))
     } catch (error) {
       hotList.value = []
 
@@ -335,12 +264,17 @@ export function useFirefly() {
     tabItems: FIREFLY_TAB_ITEMS,
     loadingFeed,
     loadingHotList,
+    loadingTopics,
     feedList,
     feedTotal,
     hotList,
+    topicList,
     activeTab,
+    activeTopicId,
+    searchKeyword,
     fetchFeed,
-    toggleLike,
+    fetchTopicList,
+    toggleFavorite,
     fetchHotList
   }
 }
