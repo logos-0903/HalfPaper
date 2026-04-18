@@ -85,7 +85,7 @@
 | Diary | POST | `/diary/unlike` | 是 | 取消点赞日记 |
 | Diary | POST | `/diary/favorite` | 是 | 收藏日记 |
 | Diary | POST | `/diary/unfavorite` | 是 | 取消收藏日记 |
-| Diary | GET | `/diary/detail` | 是 | 当前用户自己的日记详情 |
+| Diary | GET | `/diary/detail` | 是 | 日记详情（支持查看他人公开日记） |
 | Diary | GET | `/diary/list` | 是 | 当前用户日记列表 |
 | Diary | GET | `/diary/search` | 是 | 搜索当前用户自己的日记 |
 | Diary | GET | `/diary/favorite/list` | 是 | 当前用户收藏列表 |
@@ -1211,6 +1211,7 @@
 - 图片必须已通过 `/image/callback` 激活，且属于当前用户
 - 当前实现对创建行为做了 5 秒节流
 - 发布成功后会为当前用户发放经验值
+- `topic_id` 会校验话题是否存在，不存在时返回 `-400`
 
 **返回参数 - 草稿**
 
@@ -1325,6 +1326,7 @@
 - 如果当前日记存在 AI 会话，则更新成功后会清空该日记的 AI 会话和消息
 - 正式日记首次改为 `public` 且此前未公开过时，会自动写入 `published_at`
 - `images` 为全量替换，传空数组表示清空图片
+- `topic_id` 会校验话题是否存在，不存在时返回 `-400`
 
 **返回参数 - 草稿更新成功**
 
@@ -1437,7 +1439,7 @@
 
 **说明**
 
-- 当前实现只允许查看当前登录用户自己的日记详情
+- 支持查看自己的所有日记，以及他人 `status='active'`、`visibility='public'`、`moderation_status='normal'` 的公开日记
 - 时间字段为秒级 Unix 时间戳
 
 **返回参数**
@@ -1464,6 +1466,7 @@
 | has_ai_chat | boolean | 是否存在 AI 会话 |
 | ai_chat_requires_force_update | boolean | 是否存在用户主动追聊 |
 | is_owner | boolean | 是否本人 |
+| is_liked | boolean | 当前用户是否已点赞 |
 | is_favorited | boolean | 当前用户是否已收藏 |
 | author | object | 作者信息 |
 | topic | object\|null | 话题信息 |
@@ -1505,6 +1508,7 @@
     "has_ai_chat": true,
     "ai_chat_requires_force_update": false,
     "is_owner": true,
+    "is_liked": true,
     "is_favorited": true,
     "author": {
       "id": "e4dfc11b-2cfd-4c47-9b46-5b1a2eb1f3ce",
@@ -1633,7 +1637,7 @@
 
 **说明**
 
-- 重复点赞会直接返回成功，不会重复插入记录
+- 已经点过赞时返回 `-400`，提示“已经点过赞了”
 - 本人可点赞自己的非删除日记
 - 非本人仅可点赞 `status='active'` 且 `visibility!='private'` 的日记
 
@@ -1673,7 +1677,7 @@
 
 **说明**
 
-- 若当前未点赞，接口仍会返回成功
+- 当前未点赞时返回 `-400`，提示“还没有点过赞”
 - 权限规则与点赞接口一致
 
 **返回参数**
@@ -1974,7 +1978,7 @@
 |------|------|------|
 | diary_id | string | 日记 ID |
 | replies | array | 一级评论列表 |
-| pagination | object | 顶级评论分页信息 |
+| pagination | object | 顶级评论分页信息（包含 total 一级评论数、total_all 全部评论数） |
 
 **replies 元素结构**
 
@@ -2061,6 +2065,7 @@
       "page": 1,
       "page_size": 20,
       "total": 1,
+      "total_all": 2,
       "total_pages": 1
     }
   }
@@ -2241,6 +2246,7 @@
 - 日记作者可删除该日记下任意评论
 - 删除一级评论时会带走整条评论线程
 - 删除子评论时会递归删除其子树
+- 当日记作者删除他人评论时，会向评论作者发送站内通知，通知内容包含评论摘要（最多 160 字）
 
 **返回参数**
 
@@ -2272,6 +2278,10 @@
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | comment_id | string | ✅ | 评论 UUID |
+
+**说明**
+
+- 已经点过赞时返回 `-400`，提示“已经点过赞了”
 
 **返回参数**
 
@@ -2307,6 +2317,10 @@
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | comment_id | string | ✅ | 评论 UUID |
+
+**说明**
+
+- 当前未点赞时返回 `-400`，提示“还没有点过赞”
 
 **返回参数**
 
